@@ -1,0 +1,57 @@
+{
+  "menu": {
+    "dailyQuote": "Daily Quote",
+    "theme": "Theme Settings",
+    "language": "Language Settings",
+    "notification": "Notification Settings",
+    "data": "Data Management"
+  },
+  "dailyQuote": {
+    "title": "Daily Quote",
+    "search": "Enter search term"
+  },
+  "thought": {
+    "title": "My Thoughts",
+    "placeholder": "Write your thoughts about today's quote...",
+    "submit": "Save",
+    "list": "My Thoughts List",
+    "empty": "No thoughts yet.",
+    "date": "Date"
+  },
+  "share": {
+    "title": "Share",
+    "quoteOnly": "Share Quote Only",
+    "quoteAndThought": "Share Quote and Thought",
+    "twitter": "Share on Twitter",
+    "facebook": "Share on Facebook",
+    "instagram": "Share on Instagram",
+    "kakao": "Share on KakaoTalk",
+    "copy": "Copy to Clipboard",
+    "copied": "Copied to clipboard!",
+    "instagram": "Content has been copied for Instagram.",
+    "kakao": "Content has been copied for KakaoTalk."
+  },
+  "settings": {
+    "theme": {
+      "title": "Theme Settings",
+      "light": "Light Mode",
+      "dark": "Dark Mode"
+    },
+    "language": {
+      "title": "Language Settings",
+      "ko": "한국어",
+      "en": "English"
+    },
+    "notification": {
+      "title": "Notification Settings",
+      "enable": "Enable Notifications",
+      "time": "Notification Time"
+    },
+    "data": {
+      "title": "Data Management",
+      "export": "Export Data",
+      "import": "Import Data",
+      "delete": "Delete Data"
+    }
+  }
+} 

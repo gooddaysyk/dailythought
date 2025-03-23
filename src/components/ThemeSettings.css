@@ -1,0 +1,77 @@
+.theme-settings {
+  background: var(--bg-color);
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin: 20px 0;
+}
+
+.theme-settings h3 {
+  margin: 0 0 20px 0;
+  color: var(--text-color);
+}
+
+.theme-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.theme-mode, .accent-color {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.theme-mode label, .accent-color label {
+  color: var(--text-color);
+  font-size: 16px;
+}
+
+.theme-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.theme-button {
+  padding: 8px 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.theme-button:hover {
+  background: var(--hover-color);
+}
+
+.theme-button.active {
+  background: var(--accent-color);
+  color: white;
+  border-color: var(--accent-color);
+}
+
+.color-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.color-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.color-button:hover {
+  transform: scale(1.1);
+}
+
+.color-button.active {
+  border-color: var(--text-color);
+  transform: scale(1.1);
+} 
