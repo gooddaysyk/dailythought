@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/dailythought/static/css/main.d4281567.css",
+    "main.js": "/dailythought/static/js/main.7d8f2d4c.js",
+    "static/js/453.be31455f.chunk.js": "/dailythought/static/js/453.be31455f.chunk.js",
+    "index.html": "/dailythought/index.html",
+    "main.d4281567.css.map": "/dailythought/static/css/main.d4281567.css.map",
+    "main.7d8f2d4c.js.map": "/dailythought/static/js/main.7d8f2d4c.js.map",
+    "453.be31455f.chunk.js.map": "/dailythought/static/js/453.be31455f.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.d4281567.css",
+    "static/js/main.7d8f2d4c.js"
+  ]
+}
