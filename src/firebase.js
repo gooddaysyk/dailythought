@@ -1,24 +1,24 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
+import { getAuth } from 'firebase/auth';
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID
+  apiKey: "AIzaSyBVwFvYEWEXkk1ZxXWEVB6wZDzGk_Tz0Ug",
+  authDomain: "dailythought-c8a5c.firebaseapp.com",
+  projectId: "dailythought-c8a5c",
+  storageBucket: "dailythought-c8a5c.appspot.com",
+  messagingSenderId: "1098498831961",
+  appId: "1:1098498831961:web:e2c0c0a5a2c0a5a2c0a5a2"
 };
 
 // Firebase 초기화
 const app = initializeApp(firebaseConfig);
 
+// Firestore 인스턴스
+const db = getFirestore(app);
+
 // Auth 인스턴스 초기화 및 설정
 const auth = getAuth(app);
 auth.useDeviceLanguage(); // 사용자 브라우저 언어 설정 사용
 
-// Firestore 인스턴스
-const db = getFirestore(app);
-
-export { app, auth, db }; 
+export { app, db, auth }; 

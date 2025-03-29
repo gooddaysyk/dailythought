@@ -87,7 +87,8 @@ function AppContent() {
 
   const loadUserData = async (userId) => {
     try {
-      console.log("Loading user data for:", userId);
+      console.log('Loading thoughts for user:', userId);
+      
       const thoughtsRef = collection(db, 'thoughts');
       const thoughtsQuery = query(
         thoughtsRef,
@@ -101,7 +102,7 @@ function AppContent() {
         ...doc.data()
       }));
       
-      console.log("Loaded thoughts:", thoughts);
+      console.log('Loaded thoughts:', thoughts);
       setSavedThoughts(thoughts);
 
       const bookmarksRef = doc(db, 'bookmarks', userId);
@@ -110,8 +111,8 @@ function AppContent() {
         setBookmarks(bookmarksDoc.data().bookmarks || []);
       }
     } catch (error) {
-      console.error("Error loading user data:", error);
-      alert("데이터를 불러오는 중 오류가 발생했습니다.");
+      console.error('Error loading thoughts:', error);
+      alert('데이터를 불러오는 중 오류가 발생했습니다: ' + error.message);
     }
   };
 
@@ -155,19 +156,33 @@ function AppContent() {
 
   const handleThoughtSubmit = async (e) => {
     e.preventDefault();
-    if (!thought.trim() || !user) return;
+    if (!thought.trim() || !user) {
+      console.log('No thought or user:', { thought: thought.trim(), userId: user?.uid });
+      return;
+    }
 
     try {
-      console.log("Saving thought for user:", user.uid);
+      console.log('Saving thought:', {
+        userId: user.uid,
+        thought: thought.trim(),
+        quote: quote
+      });
+
       const newThought = {
-        text: thought,
+        text: thought.trim(),
         date: new Date().toISOString(),
         userId: user.uid,
-        quote: { ...quote }
+        quote: {
+          text: quote.text,
+          author: quote.author
+        }
       };
       
-      const docRef = await addDoc(collection(db, 'thoughts'), newThought);
-      console.log("Thought saved with ID:", docRef.id);
+      // Firestore에 저장
+      const thoughtsRef = collection(db, 'thoughts');
+      const docRef = await addDoc(thoughtsRef, newThought);
+      
+      console.log('Thought saved successfully:', docRef.id);
       
       // 상태 업데이트
       setSavedThoughts(prevThoughts => [{
@@ -175,10 +190,14 @@ function AppContent() {
         ...newThought
       }, ...prevThoughts]);
       
+      // 입력 필드 초기화
       setThought('');
+      
+      // 성공 메시지 표시
+      alert('생각이 저장되었습니다!');
     } catch (error) {
-      console.error("Error saving thought:", error);
-      alert("저장 중 오류가 발생했습니다.");
+      console.error('Error saving thought:', error);
+      alert('저장 중 오류가 발생했습니다: ' + error.message);
     }
   };
 
