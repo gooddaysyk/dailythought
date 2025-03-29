@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import './ThemeSettings.css';
+import { useTheme } from '../contexts/ThemeContext';
 
 function ThemeSettings() {
-  const [theme, setTheme] = useState('light');
+  const { theme, setTheme } = useTheme();
   const [accentColor, setAccentColor] = useState('#4CAF50');
 
   useEffect(() => {
@@ -41,26 +42,19 @@ function ThemeSettings() {
   ];
 
   return (
-    <div className="theme-settings">
-      <h3>테마 설정</h3>
-      
-      <div className="theme-controls">
-        <div className="theme-mode">
-          <label>테마 모드:</label>
-          <div className="theme-buttons">
-            <button
-              className={`theme-button ${theme === 'light' ? 'active' : ''}`}
-              onClick={() => handleThemeChange('light')}
-            >
-              라이트 모드
-            </button>
-            <button
-              className={`theme-button ${theme === 'dark' ? 'active' : ''}`}
-              onClick={() => handleThemeChange('dark')}
-            >
-              다크 모드
-            </button>
-          </div>
+    <div className="settings-section">
+      <h2>테마 설정</h2>
+      <div className="settings-content">
+        <div className="setting-item">
+          <label>테마 선택:</label>
+          <select
+            value={theme}
+            onChange={(e) => handleThemeChange(e.target.value)}
+          >
+            <option value="light">밝은 테마</option>
+            <option value="dark">어두운 테마</option>
+            <option value="system">시스템 설정</option>
+          </select>
         </div>
 
         <div className="accent-color">

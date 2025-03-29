@@ -3,8 +3,8 @@ import Calendar from 'react-calendar';
 import { format, subDays } from 'date-fns';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell } from 'recharts';
 import { db, auth } from './firebase';
-import { collection, addDoc, query, where, getDocs, doc, setDoc, getDoc } from 'firebase/firestore';
-import { signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import { collection, addDoc, query, where, getDocs, doc, setDoc, getDoc, orderBy } from 'firebase/firestore';
+import { signInWithPopup, GoogleAuthProvider, signOut, getAuth } from 'firebase/auth';
 import 'react-calendar/dist/Calendar.css';
 import { dailyQuotes } from './data/dailyQuotes';
 import DataManagement from './components/DataManagement';
@@ -12,6 +12,7 @@ import ShareButton from './components/ShareButton';
 import NotificationSettings from './components/NotificationSettings';
 import ThemeSettings from './components/ThemeSettings';
 import LanguageSettings from './components/LanguageSettings';
+import Wallet from './components/Wallet';
 import { useLanguage } from './contexts/LanguageContext';
 import './App.css';
 
@@ -27,13 +28,14 @@ function AppContent() {
   const [selectedMood, setSelectedMood] = useState('neutral');
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeMenu, setActiveMenu] = useState('quote'); // 'quote', 'thought', 'theme', 'language', 'notification', 'data'
+  const [activeMenu, setActiveMenu] = useState('quote'); // 'quote', 'thought', 'theme', 'language', 'notification', 'data', 'wallet'
   const [thought, setThought] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [thoughts, setThoughts] = useState([]);
-  const [quote] = useState({
-    text: "The only way to do great work is to love what you do.",
-    author: "Steve Jobs"
+  const [quote, setQuote] = useState(() => {
+    const today = new Date();
+    const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+    return dailyQuotes[dayOfYear % dailyQuotes.length];
   });
 
   const moods = {
@@ -45,12 +47,16 @@ function AppContent() {
   };
 
   useEffect(() => {
-    const unsubscribe = auth.onAuthStateChanged((user) => {
+    console.log("Auth state change effect running");
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      console.log("Auth state changed:", user?.uid);
       setUser(user);
-      setIsLoading(false);
       if (user) {
-        loadUserData(user.uid);
+        await loadUserData(user.uid);
+      } else {
+        setSavedThoughts([]);
       }
+      setIsLoading(false);
     });
 
     return () => unsubscribe();
@@ -81,13 +87,21 @@ function AppContent() {
 
   const loadUserData = async (userId) => {
     try {
+      console.log("Loading user data for:", userId);
       const thoughtsRef = collection(db, 'thoughts');
-      const thoughtsQuery = query(thoughtsRef, where('userId', '==', userId));
+      const thoughtsQuery = query(
+        thoughtsRef,
+        where('userId', '==', userId),
+        orderBy('date', 'desc')
+      );
+      
       const thoughtsSnapshot = await getDocs(thoughtsQuery);
       const thoughts = thoughtsSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
+      
+      console.log("Loaded thoughts:", thoughts);
       setSavedThoughts(thoughts);
 
       const bookmarksRef = doc(db, 'bookmarks', userId);
@@ -96,16 +110,36 @@ function AppContent() {
         setBookmarks(bookmarksDoc.data().bookmarks || []);
       }
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error("Error loading user data:", error);
+      alert("데이터를 불러오는 중 오류가 발생했습니다.");
     }
   };
 
   const handleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
+      
+      const result = await signInWithPopup(auth, provider);
+      // 로그인 성공 후 처리
+      if (result.user) {
+        console.log('로그인 성공:', result.user.email);
+        // 사용자 데이터 로드
+        await loadUserData(result.user.uid);
+        // 로컬 스토리지에 로그인 상태 저장
+        localStorage.setItem('isLoggedIn', 'true');
+      }
     } catch (error) {
-      console.error('Login error:', error);
+      console.error('로그인 오류:', error);
+      if (error.code === 'auth/popup-closed-by-user') {
+        alert('로그인 창이 닫혔습니다. 다시 시도해주세요.');
+      } else if (error.code === 'auth/popup-blocked') {
+        alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
+      } else {
+        alert('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+      }
     }
   };
 
@@ -119,17 +153,32 @@ function AppContent() {
     }
   };
 
-  const handleThoughtSubmit = (e) => {
+  const handleThoughtSubmit = async (e) => {
     e.preventDefault();
-    if (thought.trim()) {
+    if (!thought.trim() || !user) return;
+
+    try {
+      console.log("Saving thought for user:", user.uid);
       const newThought = {
-        id: Date.now(),
         text: thought,
         date: new Date().toISOString(),
+        userId: user.uid,
         quote: { ...quote }
       };
-      setThoughts([newThought, ...thoughts]);
+      
+      const docRef = await addDoc(collection(db, 'thoughts'), newThought);
+      console.log("Thought saved with ID:", docRef.id);
+      
+      // 상태 업데이트
+      setSavedThoughts(prevThoughts => [{
+        id: docRef.id,
+        ...newThought
+      }, ...prevThoughts]);
+      
       setThought('');
+    } catch (error) {
+      console.error("Error saving thought:", error);
+      alert("저장 중 오류가 발생했습니다.");
     }
   };
 
@@ -143,7 +192,7 @@ function AppContent() {
       case 'quote':
         return (
           <div className="quote-section">
-            <h2>{t('dailyQuote.title')}</h2>
+            <h2>오늘의 명언</h2>
             <div className="quote-content">
               <p>"{quote.text}"</p>
               <p className="quote-author">- {quote.author}</p>
@@ -151,50 +200,45 @@ function AppContent() {
             <ShareButton quote={quote} thought={thought} />
             
             <div className="thought-input-section">
-              <h3>{t('thought.title')}</h3>
+              <h3>나의 생각</h3>
               <form onSubmit={handleThoughtSubmit}>
                 <textarea
                   value={thought}
                   onChange={(e) => setThought(e.target.value)}
-                  placeholder={t('thought.placeholder')}
+                  placeholder="이 명언에 대한 나의 생각을 적어보세요..."
                 />
-                <button type="submit">{t('thought.submit')}</button>
+                <button type="submit">저장하기</button>
               </form>
             </div>
 
-            <div className="thoughts-list-section">
-              <h3>{t('thought.list')}</h3>
-              <div className="search-box">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={t('dailyQuote.search')}
-                />
-              </div>
-              <div className="thoughts-list">
-                {filteredThoughts.length > 0 ? (
-                  filteredThoughts.map(item => (
-                    <div key={item.id} className="thought-item">
-                      <div className="thought-quote">
-                        <p>"{item.quote.text}"</p>
-                        <p className="quote-author">- {item.quote.author}</p>
+            {user && (
+              <div className="saved-thoughts-section">
+                <h3>저장된 생각들</h3>
+                {savedThoughts.length > 0 ? (
+                  <div className="thoughts-list">
+                    {savedThoughts.map((savedThought) => (
+                      <div key={savedThought.id} className="thought-item">
+                        <div className="thought-date">
+                          {new Date(savedThought.date).toLocaleDateString()}
+                        </div>
+                        <div className="thought-quote">
+                          "{savedThought.quote.text}"
+                        </div>
+                        <div className="thought-text">
+                          {savedThought.text}
+                        </div>
                       </div>
-                      <div className="thought-text">
-                        <p>{item.text}</p>
-                        <p className="thought-date">
-                          {new Date(item.date).toLocaleDateString('ko-KR')}
-                        </p>
-                      </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : (
-                  <p className="empty-message">{t('thought.empty')}</p>
+                  <p className="no-thoughts">아직 저장된 생각이 없습니다.</p>
                 )}
               </div>
-            </div>
+            )}
           </div>
         );
+      case 'wallet':
+        return <Wallet user={user} />;
       case 'theme':
         return <ThemeSettings />;
       case 'language':
@@ -202,15 +246,7 @@ function AppContent() {
       case 'notification':
         return <NotificationSettings />;
       case 'data':
-        return (
-          <DataManagement 
-            user={user}
-            savedThoughts={savedThoughts || []}
-            setSavedThoughts={setSavedThoughts}
-            bookmarks={bookmarks || []}
-            setBookmarks={setBookmarks}
-          />
-        );
+        return <DataManagement user={user} savedThoughts={savedThoughts} setSavedThoughts={setSavedThoughts} bookmarks={bookmarks} setBookmarks={setBookmarks} />;
       default:
         return null;
     }
@@ -219,7 +255,19 @@ function AppContent() {
   if (isLoading) {
     return (
       <div className="loading-screen">
-        <div className="loading-spinner">Loading...</div>
+        <div className="loading-spinner">로딩중...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="login-container">
+        <h2>Daily Thought</h2>
+        <p>매일 새로운 명언과 함께 나의 생각을 기록해보세요</p>
+        <button onClick={handleLogin} className="login-button">
+          Google로 시작하기
+        </button>
       </div>
     );
   }
@@ -227,21 +275,21 @@ function AppContent() {
   return (
     <div className="container">
       <header className="app-header">
-        <h1>{t('app.title')}</h1>
+        <h1>Daily Thought</h1>
         <div className="auth-buttons">
           {user ? (
             <div className="user-info">
               {user.photoURL && (
-                <img src={user.photoURL} alt="Profile" className="profile-image" />
+                <img src={user.photoURL} alt="프로필" className="profile-image" />
               )}
               <span className="user-name">{user.displayName}</span>
               <button onClick={handleLogout} className="logout-button">
-                {t('app.logout')}
+                로그아웃
               </button>
             </div>
           ) : (
             <button onClick={handleLogin} className="login-button">
-              {t('app.login')}
+              로그인
             </button>
           )}
         </div>
@@ -263,31 +311,37 @@ function AppContent() {
                 className={`menu-button ${activeMenu === 'quote' ? 'active' : ''}`}
                 onClick={() => setActiveMenu('quote')}
               >
-                {t('menu.dailyQuote')}
+                오늘의 명언
+              </button>
+              <button
+                className={`menu-button ${activeMenu === 'wallet' ? 'active' : ''}`}
+                onClick={() => setActiveMenu('wallet')}
+              >
+                내 지갑
               </button>
               <button
                 className={`menu-button ${activeMenu === 'theme' ? 'active' : ''}`}
                 onClick={() => setActiveMenu('theme')}
               >
-                {t('menu.theme')}
+                테마 설정
               </button>
               <button
                 className={`menu-button ${activeMenu === 'language' ? 'active' : ''}`}
                 onClick={() => setActiveMenu('language')}
               >
-                {t('menu.language')}
+                언어 설정
               </button>
               <button
                 className={`menu-button ${activeMenu === 'notification' ? 'active' : ''}`}
                 onClick={() => setActiveMenu('notification')}
               >
-                {t('menu.notification')}
+                알림 설정
               </button>
               <button
                 className={`menu-button ${activeMenu === 'data' ? 'active' : ''}`}
                 onClick={() => setActiveMenu('data')}
               >
-                {t('menu.data')}
+                데이터 관리
               </button>
             </nav>
 

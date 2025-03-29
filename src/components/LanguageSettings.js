@@ -3,24 +3,22 @@ import { useLanguage } from '../contexts/LanguageContext';
 import './LanguageSettings.css';
 
 function LanguageSettings() {
-  const { language, changeLanguage, t } = useLanguage();
+  const { language, setLanguage } = useLanguage();
 
   return (
-    <div className="language-settings">
-      <h3>{t('settings.language.title')}</h3>
-      <div className="language-buttons">
-        <button
-          className={`language-button ${language === 'ko' ? 'active' : ''}`}
-          onClick={() => changeLanguage('ko')}
-        >
-          한국어
-        </button>
-        <button
-          className={`language-button ${language === 'en' ? 'active' : ''}`}
-          onClick={() => changeLanguage('en')}
-        >
-          English
-        </button>
+    <div className="settings-section">
+      <h2>언어 설정</h2>
+      <div className="settings-content">
+        <div className="setting-item">
+          <label>언어 선택:</label>
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+          >
+            <option value="ko">한국어</option>
+            <option value="en">English</option>
+          </select>
+        </div>
       </div>
     </div>
   );

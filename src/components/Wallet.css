@@ -1,0 +1,157 @@
+.wallet-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  text-align: center;
+}
+
+.wallet-container h3 {
+  margin-bottom: 30px;
+  color: #333;
+  font-size: 24px;
+}
+
+.connect-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.connect-button:hover {
+  background-color: #45a049;
+}
+
+.wallet-info {
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  padding: 20px;
+  margin-top: 20px;
+}
+
+.account-info {
+  margin-bottom: 20px;
+}
+
+.address-container,
+.private-key-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.copy-button {
+  padding: 6px 12px;
+  font-size: 14px;
+  background-color: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.copy-button:hover {
+  background-color: #1976D2;
+}
+
+.token-info {
+  margin: 20px 0;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.token-info h4 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.token-address {
+  font-size: 14px;
+  color: #666;
+  margin: 5px 0;
+}
+
+.add-token-button {
+  padding: 10px 20px;
+  font-size: 14px;
+  background-color: #9C27B0;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin: 10px 0;
+}
+
+.add-token-button:hover {
+  background-color: #7B1FA2;
+}
+
+.wallet-actions {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.send-button {
+  padding: 10px 20px;
+  font-size: 14px;
+  background-color: #FF9800;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.send-button:hover {
+  background-color: #F57C00;
+}
+
+.disconnect-button {
+  padding: 10px 20px;
+  font-size: 14px;
+  background-color: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.disconnect-button:hover {
+  background-color: #d32f2f;
+}
+
+.warning {
+  color: #f44336;
+  font-size: 14px;
+  margin-top: 10px;
+}
+
+@media (max-width: 600px) {
+  .wallet-container {
+    padding: 10px;
+  }
+
+  .wallet-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .address-container,
+  .private-key-container {
+    flex-direction: column;
+    gap: 5px;
+  }
+} 

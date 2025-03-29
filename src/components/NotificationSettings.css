@@ -1,22 +1,105 @@
 .notification-settings {
-  background-color: var(--bg-secondary);
-  padding: 20px;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin-bottom: 20px;
 }
 
 .notification-settings h3 {
-  margin: 0 0 20px 0;
-  color: var(--text-primary);
-  font-size: 1.2rem;
+  margin: 0 0 2rem 0;
+  color: #333;
+  text-align: center;
+  font-size: 1.5rem;
 }
 
 .notification-controls {
   display: flex;
+  flex-direction: column;
+  gap: 2rem;
   align-items: center;
-  gap: 15px;
-  margin-bottom: 20px;
+}
+
+.notification-option {
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.notification-option label {
+  color: #666;
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.notification-toggle {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.notification-button {
+  padding: 0.8rem 1.5rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background: white;
+  color: #333;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.notification-button:hover {
+  background: #f5f5f5;
+  border-color: #1976d2;
+}
+
+.notification-button.active {
+  background: #1976d2;
+  color: white;
+  border-color: #1976d2;
+}
+
+.time-selector {
+  width: 100%;
+  max-width: 200px;
+  padding: 0.8rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 1rem;
+  color: #333;
+}
+
+.time-selector:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+@media (max-width: 768px) {
+  .notification-settings {
+    padding: 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .notification-settings {
+    padding: 1rem;
+  }
+  
+  .notification-toggle {
+    flex-direction: column;
+    width: 100%;
+  }
+  
+  .notification-button {
+    width: 100%;
+    text-align: center;
+  }
 }
 
 /* 스위치 스타일 */
@@ -76,27 +159,6 @@ input:checked + .slider:before {
 }
 
 .notification-label {
-  color: var(--text-primary);
-  font-size: 0.9rem;
-}
-
-.time-selector {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-top: 15px;
-}
-
-.time-selector label {
-  color: var(--text-primary);
-  font-size: 0.9rem;
-}
-
-.time-selector input[type="time"] {
-  padding: 8px;
-  border: 1px solid var(--border-color);
-  border-radius: 4px;
-  background-color: var(--bg-primary);
   color: var(--text-primary);
   font-size: 0.9rem;
 }

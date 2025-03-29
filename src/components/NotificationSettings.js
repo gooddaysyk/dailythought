@@ -3,33 +3,46 @@ import { useLanguage } from '../contexts/LanguageContext';
 import './NotificationSettings.css';
 
 function NotificationSettings({ user }) {
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [notificationTime, setNotificationTime] = useState('09:00');
-  const [permission, setPermission] = useState('default');
+  const [notifications, setNotifications] = useState({
+    daily: true,
+    weekly: false,
+    email: false
+  });
   const { t } = useLanguage();
 
   useEffect(() => {
     // 알림 권한 상태 확인
     if ('Notification' in window) {
-      setPermission(Notification.permission);
-    }
-    
-    // 저장된 알림 설정 불러오기
-    const savedSettings = localStorage.getItem('notificationSettings');
-    if (savedSettings) {
-      const { enabled, time } = JSON.parse(savedSettings);
-      setIsEnabled(enabled);
-      setNotificationTime(time);
+      // 저장된 알림 설정 불러오기
+      const savedSettings = localStorage.getItem('notificationSettings');
+      if (savedSettings) {
+        const { enabled, time } = JSON.parse(savedSettings);
+        setNotifications({
+          daily: enabled,
+          weekly: false,
+          email: false
+        });
+      }
     }
   }, []);
+
+  const handleChange = (setting) => {
+    setNotifications(prev => ({
+      ...prev,
+      [setting]: !prev[setting]
+    }));
+  };
 
   const requestPermission = async () => {
     try {
       const result = await Notification.requestPermission();
-      setPermission(result);
       if (result === 'granted') {
-        setIsEnabled(true);
-        saveSettings(true, notificationTime);
+        setNotifications({
+          daily: true,
+          weekly: false,
+          email: false
+        });
+        saveSettings(true, '09:00');
       }
     } catch (error) {
       console.error('알림 권한 요청 실패:', error);
@@ -96,57 +109,57 @@ function NotificationSettings({ user }) {
   };
 
   const handleToggle = () => {
-    if (!isEnabled && permission !== 'granted') {
+    if (!notifications.daily && Notification.permission !== 'granted') {
       requestPermission();
     } else {
-      setIsEnabled(!isEnabled);
-      saveSettings(!isEnabled, notificationTime);
+      setNotifications(prev => ({
+        ...prev,
+        daily: !prev.daily
+      }));
+      saveSettings(!notifications.daily, '09:00');
     }
   };
 
   const handleTimeChange = (e) => {
     const newTime = e.target.value;
-    setNotificationTime(newTime);
-    if (isEnabled) {
-      saveSettings(true, newTime);
-    }
+    saveSettings(notifications.daily, newTime);
   };
 
   return (
-    <div className="notification-settings">
-      <h3>{t('settings.notification.title')}</h3>
-      <div className="notification-controls">
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={isEnabled}
-            onChange={handleToggle}
-            disabled={permission === 'denied'}
-          />
-          <span className="slider round"></span>
-        </label>
-        <span className="notification-label">
-          {isEnabled ? t('settings.notification.enabled') : t('settings.notification.disabled')}
-        </span>
-      </div>
-      
-      {isEnabled && (
-        <div className="time-selector">
-          <label htmlFor="notification-time">{t('settings.notification.time')}</label>
-          <input
-            type="time"
-            id="notification-time"
-            value={notificationTime}
-            onChange={handleTimeChange}
-          />
+    <div className="settings-section">
+      <h2>알림 설정</h2>
+      <div className="settings-content">
+        <div className="setting-item">
+          <label>
+            <input
+              type="checkbox"
+              checked={notifications.daily}
+              onChange={handleToggle}
+            />
+            매일 새로운 명언 알림
+          </label>
         </div>
-      )}
-
-      {permission === 'denied' && (
-        <p className="permission-warning">
-          {t('settings.notification.permissionDenied')}
-        </p>
-      )}
+        <div className="setting-item">
+          <label>
+            <input
+              type="checkbox"
+              checked={notifications.weekly}
+              onChange={() => handleChange('weekly')}
+            />
+            주간 리마인더
+          </label>
+        </div>
+        <div className="setting-item">
+          <label>
+            <input
+              type="checkbox"
+              checked={notifications.email}
+              onChange={() => handleChange('email')}
+            />
+            이메일 알림
+          </label>
+        </div>
+      </div>
     </div>
   );
 }

@@ -81,7 +81,7 @@ function DataManagement({ user, savedThoughts, setSavedThoughts, bookmarks, setB
 
   return (
     <div className="data-management">
-      <h3>{t('settings.data.title')}</h3>
+      <h3>데이터 관리</h3>
       
       <div className="data-actions">
         <button
@@ -89,7 +89,7 @@ function DataManagement({ user, savedThoughts, setSavedThoughts, bookmarks, setB
           onClick={handleExport}
           disabled={isExporting}
         >
-          {isExporting ? t('settings.data.exporting') : t('settings.data.export')}
+          {isExporting ? '내보내는 중...' : '데이터 내보내기'}
         </button>
 
         <div className="import-section">
@@ -105,7 +105,7 @@ function DataManagement({ user, savedThoughts, setSavedThoughts, bookmarks, setB
             htmlFor="import-file"
             className={`import-button ${isImporting ? 'disabled' : ''}`}
           >
-            {isImporting ? t('settings.data.importing') : t('settings.data.import')}
+            {isImporting ? '가져오는 중...' : '데이터 가져오기'}
           </label>
         </div>
       </div>
@@ -115,8 +115,8 @@ function DataManagement({ user, savedThoughts, setSavedThoughts, bookmarks, setB
       )}
 
       <div className="data-info">
-        <p>{t('settings.data.thoughtsCount', { count: savedThoughts.length })}</p>
-        <p>{t('settings.data.bookmarksCount', { count: bookmarks.length })}</p>
+        <p>저장된 생각: {savedThoughts.length}개</p>
+        <p>북마크된 명언: {bookmarks.length}개</p>
       </div>
     </div>
   );

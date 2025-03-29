@@ -51,7 +51,14 @@
       "title": "데이터 관리",
       "export": "데이터 내보내기",
       "import": "데이터 가져오기",
-      "delete": "데이터 삭제"
+      "delete": "데이터 삭제",
+      "exporting": "내보내는 중...",
+      "importing": "가져오는 중...",
+      "thoughtsCount": "저장된 생각: {count}개",
+      "bookmarksCount": "북마크된 명언: {count}개",
+      "exportSuccess": "데이터가 성공적으로 내보내졌습니다.",
+      "importSuccess": "데이터가 성공적으로 가져와졌습니다.",
+      "error": "오류가 발생했습니다."
     }
   }
 } 

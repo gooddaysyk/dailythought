@@ -15,42 +15,34 @@ function ShareButton({ quote, thought }) {
     }
   };
 
-  const handleShare = (platform) => {
-    const shareText = getShareText();
-    const encodedText = encodeURIComponent(shareText);
-    let url = '';
-
-    switch (platform) {
-      case 'twitter':
-        url = `https://twitter.com/intent/tweet?text=${encodedText}`;
-        break;
-      case 'facebook':
-        url = `https://www.facebook.com/sharer/sharer.php?quote=${encodedText}`;
-        break;
-      case 'instagram':
-        handleCopy(shareText);
-        alert(t('share.instagram'));
-        return;
-      case 'kakao':
-        handleCopy(shareText);
-        alert(t('share.kakao'));
-        return;
-      default:
-        return;
-    }
-
-    window.open(url, '_blank', 'width=600,height=400');
+  const handleTwitterShare = () => {
+    const text = encodeURIComponent(getShareText());
+    window.open(`https://twitter.com/intent/tweet?text=${text}`, '_blank');
     setShowOptions(false);
   };
 
-  const handleCopy = async (text = getShareText()) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      alert(t('share.copied'));
-      setShowOptions(false);
-    } catch (error) {
-      console.error('Copy failed:', error);
-    }
+  const handleFacebookShare = () => {
+    const text = encodeURIComponent(getShareText());
+    window.open(`https://www.facebook.com/sharer/sharer.php?quote=${text}`, '_blank');
+    setShowOptions(false);
+  };
+
+  const handleInstagramShare = () => {
+    navigator.clipboard.writeText(getShareText());
+    alert(t('share.instagram'));
+    setShowOptions(false);
+  };
+
+  const handleKakaoShare = () => {
+    navigator.clipboard.writeText(getShareText());
+    alert(t('share.kakao'));
+    setShowOptions(false);
+  };
+
+  const handleCopyToClipboard = () => {
+    navigator.clipboard.writeText(getShareText());
+    alert(t('share.copied'));
+    setShowOptions(false);
   };
 
   return (
@@ -59,7 +51,7 @@ function ShareButton({ quote, thought }) {
         className="share-button"
         onClick={() => setShowOptions(!showOptions)}
       >
-        {t('share.title')}
+        공유
       </button>
       
       {showOptions && (
@@ -80,19 +72,19 @@ function ShareButton({ quote, thought }) {
             </button>
           </div>
           <div className="share-platform-buttons">
-            <button onClick={() => handleShare('twitter')}>
+            <button onClick={handleTwitterShare}>
               {t('share.twitter')}
             </button>
-            <button onClick={() => handleShare('facebook')}>
+            <button onClick={handleFacebookShare}>
               {t('share.facebook')}
             </button>
-            <button onClick={() => handleShare('instagram')}>
+            <button onClick={handleInstagramShare}>
               {t('share.instagram')}
             </button>
-            <button onClick={() => handleShare('kakao')}>
+            <button onClick={handleKakaoShare}>
               {t('share.kakao')}
             </button>
-            <button onClick={() => handleCopy()}>
+            <button onClick={handleCopyToClipboard}>
               {t('share.copy')}
             </button>
           </div>
