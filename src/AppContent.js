@@ -58,6 +58,17 @@ class AppContent extends React.Component {
   }
 
   componentDidMount() {
+    // 네트워크 상태 초기 체크 및 모니터링
+    const checkOnlineStatus = () => {
+      const isOnline = navigator.onLine;
+      console.log('현재 네트워크 상태:', isOnline ? '온라인' : '오프라인');
+      this.setState({ isOnline });
+    };
+
+    // 초기 상태 체크
+    checkOnlineStatus();
+
+    // 이벤트 리스너 등록
     window.addEventListener('online', this.handleOnline);
     window.addEventListener('offline', this.handleOffline);
 
@@ -121,6 +132,7 @@ class AppContent extends React.Component {
   loadUserData = async (userId) => {
     try {
       console.log('Loading thoughts for user:', userId);
+      console.log('Current online status:', navigator.onLine ? 'online' : 'offline');
       
       const thoughtsRef = collection(db, 'thoughts');
       const thoughtsQuery = query(
@@ -130,20 +142,6 @@ class AppContent extends React.Component {
       );
       
       try {
-        const cachedData = localStorage.getItem(`thoughts_${userId}`);
-        const cachedTimestamp = localStorage.getItem(`thoughts_timestamp_${userId}`);
-        const CACHE_DURATION = 5 * 60 * 1000;
-
-        if (!navigator.onLine && cachedData && cachedTimestamp) {
-          const timestamp = parseInt(cachedTimestamp);
-          if (Date.now() - timestamp < CACHE_DURATION) {
-            console.log('캐시된 데이터 사용:', new Date(timestamp));
-            const thoughts = JSON.parse(cachedData);
-            this.setState({ savedThoughts: thoughts });
-            return;
-          }
-        }
-
         const thoughtsSnapshot = await getDocs(thoughtsQuery);
         const thoughts = thoughtsSnapshot.docs.map(doc => ({
           id: doc.id,
@@ -151,8 +149,9 @@ class AppContent extends React.Component {
         }));
         
         console.log('서버에서 데이터 로드됨:', thoughts.length);
-        this.setState({ savedThoughts: thoughts });
+        this.setState({ savedThoughts: thoughts, isUsingCache: false });
 
+        // 성공적으로 데이터를 가져왔을 때만 캐시 업데이트
         localStorage.setItem(`thoughts_${userId}`, JSON.stringify(thoughts));
         localStorage.setItem(`thoughts_timestamp_${userId}`, Date.now().toString());
 
@@ -165,35 +164,31 @@ class AppContent extends React.Component {
           localStorage.setItem(`bookmarks_timestamp_${userId}`, Date.now().toString());
         }
       } catch (error) {
+        console.error('Data loading error:', error);
+        
+        // 오프라인이거나 다른 오류 발생 시 캐시 사용
+        const cachedData = localStorage.getItem(`thoughts_${userId}`);
+        if (cachedData) {
+          console.log('캐시된 데이터 사용');
+          this.setState({
+            savedThoughts: JSON.parse(cachedData),
+            isUsingCache: true
+          });
+        }
+        
         if (!navigator.onLine) {
-          console.log('오프라인 상태 - 캐시된 데이터 사용 시도');
-          const cachedThoughts = localStorage.getItem(`thoughts_${userId}`);
-          const cachedBookmarks = localStorage.getItem(`bookmarks_${userId}`);
-          
-          if (cachedThoughts) {
-            this.setState({ 
-              savedThoughts: JSON.parse(cachedThoughts),
-              isUsingCache: true 
-            });
-          }
-          
-          if (cachedBookmarks) {
-            this.setState({ 
-              bookmarks: JSON.parse(cachedBookmarks),
-              isUsingCache: true 
-            });
-          }
-          
-          if (this.state.isUsingCache) {
-            console.log('캐시된 데이터를 사용 중입니다. 온라인 상태가 되면 자동으로 동기화됩니다.');
-          }
+          console.log('오프라인 상태 - 캐시된 데이터 사용');
         } else {
           throw error;
         }
       }
     } catch (error) {
-      console.error('Error loading thoughts:', error);
-      alert('데이터를 불러오는 중 오류가 발생했습니다: ' + error.message);
+      console.error('Error in loadUserData:', error);
+      if (!navigator.onLine) {
+        alert('오프라인 상태입니다. 캐시된 데이터를 사용합니다.');
+      } else {
+        alert('데이터를 불러오는 중 오류가 발생했습니다: ' + error.message);
+      }
     }
   };
 
