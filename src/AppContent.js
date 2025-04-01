@@ -118,29 +118,57 @@ function AppContent() {
 
   const handleLogin = async () => {
     try {
+      setIsLoading(true); // 로딩 상태 시작
+      
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({
         prompt: 'select_account'
       });
       
       const result = await signInWithPopup(auth, provider);
-      // 로그인 성공 후 처리
+      
       if (result.user) {
         console.log('로그인 성공:', result.user.email);
+        
+        // Firestore에 사용자 정보 저장
+        const userRef = doc(db, 'users', result.user.uid);
+        await setDoc(userRef, {
+          email: result.user.email,
+          displayName: result.user.displayName,
+          lastLogin: new Date().toISOString()
+        }, { merge: true });
+        
         // 사용자 데이터 로드
         await loadUserData(result.user.uid);
+        
         // 로컬 스토리지에 로그인 상태 저장
         localStorage.setItem('isLoggedIn', 'true');
+        localStorage.setItem('userId', result.user.uid);
       }
     } catch (error) {
       console.error('로그인 오류:', error);
-      if (error.code === 'auth/popup-closed-by-user') {
-        alert('로그인 창이 닫혔습니다. 다시 시도해주세요.');
-      } else if (error.code === 'auth/popup-blocked') {
-        alert('팝업이 차단되었습니다. 팝업 차단을 해제해주세요.');
-      } else {
-        alert('로그인 중 오류가 발생했습니다. 다시 시도해주세요.');
+      let errorMessage = '로그인 중 오류가 발생했습니다.';
+      
+      switch (error.code) {
+        case 'auth/popup-closed-by-user':
+          errorMessage = '로그인 창이 닫혔습니다. 다시 시도해주세요.';
+          break;
+        case 'auth/popup-blocked':
+          errorMessage = '팝업이 차단되었습니다. 팝업 차단을 해제해주세요.';
+          break;
+        case 'auth/cancelled-popup-request':
+          errorMessage = '이전 로그인 요청이 진행 중입니다. 잠시 후 다시 시도해주세요.';
+          break;
+        case 'auth/network-request-failed':
+          errorMessage = '네트워크 연결을 확인해주세요.';
+          break;
+        default:
+          errorMessage = `로그인 오류: ${error.message}`;
       }
+      
+      alert(errorMessage);
+    } finally {
+      setIsLoading(false); // 로딩 상태 종료
     }
   };
 
