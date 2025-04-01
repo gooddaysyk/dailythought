@@ -38,8 +38,13 @@ class AppContent extends React.Component {
         const today = new Date();
         const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
         return dailyQuotes[dayOfYear % dailyQuotes.length];
-      })()
+      })(),
+      isOnline: navigator.onLine,
+      isUsingCache: false
     };
+
+    this.handleOnline = this.handleOnline.bind(this);
+    this.handleOffline = this.handleOffline.bind(this);
 
     this.moods = {
       happy: '😊',
@@ -48,9 +53,14 @@ class AppContent extends React.Component {
       angry: '😠',
       neutral: '😐'
     };
+
+    this.authUnsubscribe = null;
   }
 
   componentDidMount() {
+    window.addEventListener('online', this.handleOnline);
+    window.addEventListener('offline', this.handleOffline);
+
     this.authUnsubscribe = auth.onAuthStateChanged(async (user) => {
       console.log("Auth state changed:", user?.uid);
       this.setState({ user });
@@ -66,10 +76,28 @@ class AppContent extends React.Component {
   }
 
   componentWillUnmount() {
+    window.removeEventListener('online', this.handleOnline);
+    window.removeEventListener('offline', this.handleOffline);
+
     if (this.authUnsubscribe) {
       this.authUnsubscribe();
     }
   }
+
+  handleOnline = () => {
+    console.log('온라인 상태로 전환되었습니다.');
+    this.setState({ isOnline: true, isUsingCache: false });
+    
+    if (this.state.user && this.state.isUsingCache) {
+      console.log('캐시된 데이터 동기화 시작');
+      this.loadUserData(this.state.user.uid);
+    }
+  };
+
+  handleOffline = () => {
+    console.log('오프라인 상태로 전환되었습니다.');
+    this.setState({ isOnline: false });
+  };
 
   fetchTodayQuote = async () => {
     try {
@@ -101,19 +129,67 @@ class AppContent extends React.Component {
         orderBy('date', 'desc')
       );
       
-      const thoughtsSnapshot = await getDocs(thoughtsQuery);
-      const thoughts = thoughtsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      
-      console.log('Loaded thoughts:', thoughts);
-      this.setState({ savedThoughts: thoughts });
+      try {
+        const cachedData = localStorage.getItem(`thoughts_${userId}`);
+        const cachedTimestamp = localStorage.getItem(`thoughts_timestamp_${userId}`);
+        const CACHE_DURATION = 5 * 60 * 1000;
 
-      const bookmarksRef = doc(db, 'bookmarks', userId);
-      const bookmarksDoc = await getDoc(bookmarksRef);
-      if (bookmarksDoc.exists()) {
-        this.setState({ bookmarks: bookmarksDoc.data().bookmarks || [] });
+        if (!navigator.onLine && cachedData && cachedTimestamp) {
+          const timestamp = parseInt(cachedTimestamp);
+          if (Date.now() - timestamp < CACHE_DURATION) {
+            console.log('캐시된 데이터 사용:', new Date(timestamp));
+            const thoughts = JSON.parse(cachedData);
+            this.setState({ savedThoughts: thoughts });
+            return;
+          }
+        }
+
+        const thoughtsSnapshot = await getDocs(thoughtsQuery);
+        const thoughts = thoughtsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log('서버에서 데이터 로드됨:', thoughts.length);
+        this.setState({ savedThoughts: thoughts });
+
+        localStorage.setItem(`thoughts_${userId}`, JSON.stringify(thoughts));
+        localStorage.setItem(`thoughts_timestamp_${userId}`, Date.now().toString());
+
+        const bookmarksRef = doc(db, 'bookmarks', userId);
+        const bookmarksDoc = await getDoc(bookmarksRef);
+        if (bookmarksDoc.exists()) {
+          const bookmarks = bookmarksDoc.data().bookmarks || [];
+          this.setState({ bookmarks });
+          localStorage.setItem(`bookmarks_${userId}`, JSON.stringify(bookmarks));
+          localStorage.setItem(`bookmarks_timestamp_${userId}`, Date.now().toString());
+        }
+      } catch (error) {
+        if (!navigator.onLine) {
+          console.log('오프라인 상태 - 캐시된 데이터 사용 시도');
+          const cachedThoughts = localStorage.getItem(`thoughts_${userId}`);
+          const cachedBookmarks = localStorage.getItem(`bookmarks_${userId}`);
+          
+          if (cachedThoughts) {
+            this.setState({ 
+              savedThoughts: JSON.parse(cachedThoughts),
+              isUsingCache: true 
+            });
+          }
+          
+          if (cachedBookmarks) {
+            this.setState({ 
+              bookmarks: JSON.parse(cachedBookmarks),
+              isUsingCache: true 
+            });
+          }
+          
+          if (this.state.isUsingCache) {
+            console.log('캐시된 데이터를 사용 중입니다. 온라인 상태가 되면 자동으로 동기화됩니다.');
+          }
+        } else {
+          throw error;
+        }
       }
     } catch (error) {
       console.error('Error loading thoughts:', error);
@@ -123,6 +199,11 @@ class AppContent extends React.Component {
 
   handleLogin = async () => {
     try {
+      if (!navigator.onLine) {
+        alert('오프라인 상태에서는 로그인할 수 없습니다. 인터넷 연결을 확인해주세요.');
+        return;
+      }
+
       this.setState({ isLoading: true });
       
       const provider = new GoogleAuthProvider();
@@ -135,17 +216,25 @@ class AppContent extends React.Component {
       if (result.user) {
         console.log('로그인 성공:', result.user.email);
         
-        const userRef = doc(db, 'users', result.user.uid);
-        await setDoc(userRef, {
-          email: result.user.email,
-          displayName: result.user.displayName,
-          lastLogin: new Date().toISOString()
-        }, { merge: true });
-        
-        await this.loadUserData(result.user.uid);
-        
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userId', result.user.uid);
+        try {
+          const userRef = doc(db, 'users', result.user.uid);
+          await setDoc(userRef, {
+            email: result.user.email,
+            displayName: result.user.displayName,
+            lastLogin: new Date().toISOString()
+          }, { merge: true });
+          
+          await this.loadUserData(result.user.uid);
+          
+          localStorage.setItem('isLoggedIn', 'true');
+          localStorage.setItem('userId', result.user.uid);
+        } catch (error) {
+          if (!navigator.onLine) {
+            console.log('오프라인 상태입니다. 일부 데이터는 동기화되지 않을 수 있습니다.');
+          } else {
+            throw error;
+          }
+        }
       }
     } catch (error) {
       console.error('로그인 오류:', error);
@@ -187,7 +276,7 @@ class AppContent extends React.Component {
   };
 
   render() {
-    const { isLoading, user } = this.state;
+    const { isLoading, user, isOnline, isUsingCache } = this.state;
 
     if (isLoading) {
       return (
@@ -197,22 +286,20 @@ class AppContent extends React.Component {
       );
     }
 
-    if (!user) {
-      return (
-        <div className="login-container">
-          <h2>Daily Thought</h2>
-          <p>매일 새로운 명언과 함께 나의 생각을 기록해보세요</p>
-          <button onClick={this.handleLogin} className="login-button">
-            Google로 시작하기
-          </button>
-        </div>
-      );
-    }
-
     return (
       <div className="container">
         <header className="app-header">
           <h1>Daily Thought</h1>
+          {!isOnline && (
+            <div className="offline-banner">
+              오프라인 모드 - 일부 기능이 제한될 수 있습니다
+              {isUsingCache && (
+                <div className="cache-notice">
+                  캐시된 데이터를 사용 중입니다. 최신 데이터와 차이가 있을 수 있습니다.
+                </div>
+              )}
+            </div>
+          )}
           <div className="auth-buttons">
             {user ? (
               <div className="user-info">
