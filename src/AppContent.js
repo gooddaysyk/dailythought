@@ -16,76 +16,81 @@ import Wallet from './components/Wallet';
 import { useLanguage } from './contexts/LanguageContext';
 import './App.css';
 
-function AppContent() {
-  const { t } = useLanguage();
-  const [todayQuote, setTodayQuote] = useState(null);
-  const [userThought, setUserThought] = useState('');
-  const [savedThoughts, setSavedThoughts] = useState([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [bookmarks, setBookmarks] = useState([]);
-  const [showBookmarks, setShowBookmarks] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [selectedMood, setSelectedMood] = useState('neutral');
-  const [user, setUser] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeMenu, setActiveMenu] = useState('quote'); // 'quote', 'thought', 'theme', 'language', 'notification', 'data', 'wallet'
-  const [thought, setThought] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [thoughts, setThoughts] = useState([]);
-  const [quote, setQuote] = useState(() => {
-    const today = new Date();
-    const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
-    return dailyQuotes[dayOfYear % dailyQuotes.length];
-  });
-
-  const moods = {
-    happy: '😊',
-    sad: '😢',
-    excited: '🤗',
-    angry: '😠',
-    neutral: '😐'
-  };
-
-  useEffect(() => {
-    console.log("Auth state change effect running");
-    const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      console.log("Auth state changed:", user?.uid);
-      setUser(user);
-      if (user) {
-        await loadUserData(user.uid);
-      } else {
-        setSavedThoughts([]);
-      }
-      setIsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const fetchTodayQuote = async () => {
-      try {
-        // 오늘 날짜를 키로 사용
-        const today = new Date().toLocaleDateString();
-        const savedQuote = localStorage.getItem(`quote_${today}`);
-        
-        if (savedQuote) {
-          setTodayQuote(JSON.parse(savedQuote));
-        } else {
-          setTodayQuote(dailyQuotes[Math.floor(Math.random() * dailyQuotes.length)]);
-          localStorage.setItem(`quote_${today}`, JSON.stringify(todayQuote));
-        }
-      } catch (error) {
-        console.error('Error fetching quote:', error);
-      } finally {
-        setIsLoading(false);
-      }
+class AppContent extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = {
+      todayQuote: null,
+      userThought: '',
+      savedThoughts: [],
+      selectedCategory: 'all',
+      bookmarks: [],
+      showBookmarks: false,
+      selectedDate: new Date(),
+      selectedMood: 'neutral',
+      user: null,
+      isLoading: true,
+      activeMenu: 'quote',
+      thought: '',
+      searchQuery: '',
+      thoughts: [],
+      quote: (() => {
+        const today = new Date();
+        const dayOfYear = Math.floor((today - new Date(today.getFullYear(), 0, 0)) / (1000 * 60 * 60 * 24));
+        return dailyQuotes[dayOfYear % dailyQuotes.length];
+      })()
     };
 
-    fetchTodayQuote();
-  }, []);
+    this.moods = {
+      happy: '😊',
+      sad: '😢',
+      excited: '🤗',
+      angry: '😠',
+      neutral: '😐'
+    };
+  }
 
-  const loadUserData = async (userId) => {
+  componentDidMount() {
+    this.authUnsubscribe = auth.onAuthStateChanged(async (user) => {
+      console.log("Auth state changed:", user?.uid);
+      this.setState({ user });
+      if (user) {
+        await this.loadUserData(user.uid);
+      } else {
+        this.setState({ savedThoughts: [] });
+      }
+      this.setState({ isLoading: false });
+    });
+
+    this.fetchTodayQuote();
+  }
+
+  componentWillUnmount() {
+    if (this.authUnsubscribe) {
+      this.authUnsubscribe();
+    }
+  }
+
+  fetchTodayQuote = async () => {
+    try {
+      const today = new Date().toLocaleDateString();
+      const savedQuote = localStorage.getItem(`quote_${today}`);
+      
+      if (savedQuote) {
+        this.setState({ todayQuote: JSON.parse(savedQuote) });
+      } else {
+        const newQuote = dailyQuotes[Math.floor(Math.random() * dailyQuotes.length)];
+        this.setState({ todayQuote: newQuote });
+        localStorage.setItem(`quote_${today}`, JSON.stringify(newQuote));
+      }
+    } catch (error) {
+      console.error('Error fetching quote:', error);
+    } finally {
+      this.setState({ isLoading: false });
+    }
+  };
+
+  loadUserData = async (userId) => {
     try {
       console.log('Loading thoughts for user:', userId);
       
@@ -103,12 +108,12 @@ function AppContent() {
       }));
       
       console.log('Loaded thoughts:', thoughts);
-      setSavedThoughts(thoughts);
+      this.setState({ savedThoughts: thoughts });
 
       const bookmarksRef = doc(db, 'bookmarks', userId);
       const bookmarksDoc = await getDoc(bookmarksRef);
       if (bookmarksDoc.exists()) {
-        setBookmarks(bookmarksDoc.data().bookmarks || []);
+        this.setState({ bookmarks: bookmarksDoc.data().bookmarks || [] });
       }
     } catch (error) {
       console.error('Error loading thoughts:', error);
@@ -116,32 +121,20 @@ function AppContent() {
     }
   };
 
-  const handleLogin = async () => {
+  handleLogin = async () => {
     try {
-      setIsLoading(true);
+      this.setState({ isLoading: true });
       
-      // Google 로그인 제공자 설정
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({
-        prompt: 'select_account',
-        login_hint: 'user@example.com' // 선택적: 특정 계정으로 로그인 유도
+        prompt: 'select_account'
       });
       
-      // 팝업 설정
-      const popupConfig = {
-        width: 500,
-        height: 600,
-        left: (window.screen.width - 500) / 2,
-        top: (window.screen.height - 600) / 2
-      };
-      
-      // 로그인 팝업 실행
-      const result = await signInWithPopup(auth, provider, popupConfig);
+      const result = await signInWithPopup(auth, provider);
       
       if (result.user) {
         console.log('로그인 성공:', result.user.email);
         
-        // Firestore에 사용자 정보 저장
         const userRef = doc(db, 'users', result.user.uid);
         await setDoc(userRef, {
           email: result.user.email,
@@ -149,10 +142,8 @@ function AppContent() {
           lastLogin: new Date().toISOString()
         }, { merge: true });
         
-        // 사용자 데이터 로드
-        await loadUserData(result.user.uid);
+        await this.loadUserData(result.user.uid);
         
-        // 로컬 스토리지에 로그인 상태 저장
         localStorage.setItem('isLoggedIn', 'true');
         localStorage.setItem('userId', result.user.uid);
       }
@@ -173,250 +164,76 @@ function AppContent() {
         case 'auth/network-request-failed':
           errorMessage = '네트워크 연결을 확인해주세요.';
           break;
-        case 'auth/unauthorized-domain':
-          errorMessage = '이 도메인에서는 로그인이 허용되지 않습니다.';
-          break;
-        case 'auth/operation-not-allowed':
-          errorMessage = 'Google 로그인이 비활성화되어 있습니다.';
-          break;
         default:
           errorMessage = `로그인 오류: ${error.message}`;
       }
       
       alert(errorMessage);
     } finally {
-      setIsLoading(false);
+      this.setState({ isLoading: false });
     }
   };
 
-  const handleLogout = async () => {
+  handleLogout = async () => {
     try {
       await signOut(auth);
-      setSavedThoughts([]);
-      setBookmarks([]);
+      this.setState({
+        savedThoughts: [],
+        bookmarks: []
+      });
     } catch (error) {
       console.error('Logout error:', error);
     }
   };
 
-  const handleThoughtSubmit = async (e) => {
-    e.preventDefault();
-    if (!thought.trim() || !user) {
-      console.log('No thought or user:', { thought: thought.trim(), userId: user?.uid });
-      return;
+  render() {
+    const { isLoading, user } = this.state;
+
+    if (isLoading) {
+      return (
+        <div className="loading-screen">
+          <div className="loading-spinner">로딩중...</div>
+        </div>
+      );
     }
 
-    try {
-      console.log('Saving thought:', {
-        userId: user.uid,
-        thought: thought.trim(),
-        quote: quote
-      });
-
-      const newThought = {
-        text: thought.trim(),
-        date: new Date().toISOString(),
-        userId: user.uid,
-        quote: {
-          text: quote.text,
-          author: quote.author
-        }
-      };
-      
-      // Firestore에 저장
-      const thoughtsRef = collection(db, 'thoughts');
-      const docRef = await addDoc(thoughtsRef, newThought);
-      
-      console.log('Thought saved successfully:', docRef.id);
-      
-      // 상태 업데이트
-      setSavedThoughts(prevThoughts => [{
-        id: docRef.id,
-        ...newThought
-      }, ...prevThoughts]);
-      
-      // 입력 필드 초기화
-      setThought('');
-      
-      // 성공 메시지 표시
-      alert('생각이 저장되었습니다!');
-    } catch (error) {
-      console.error('Error saving thought:', error);
-      alert('저장 중 오류가 발생했습니다: ' + error.message);
+    if (!user) {
+      return (
+        <div className="login-container">
+          <h2>Daily Thought</h2>
+          <p>매일 새로운 명언과 함께 나의 생각을 기록해보세요</p>
+          <button onClick={this.handleLogin} className="login-button">
+            Google로 시작하기
+          </button>
+        </div>
+      );
     }
-  };
 
-  const filteredThoughts = thoughts.filter(item =>
-    item.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    item.quote.text.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const renderContent = () => {
-    switch (activeMenu) {
-      case 'quote':
-        return (
-          <div className="quote-section">
-            <h2>오늘의 명언</h2>
-            <div className="quote-content">
-              <p>"{quote.text}"</p>
-              <p className="quote-author">- {quote.author}</p>
-            </div>
-            <ShareButton quote={quote} thought={thought} />
-            
-            <div className="thought-input-section">
-              <h3>나의 생각</h3>
-              <form onSubmit={handleThoughtSubmit}>
-                <textarea
-                  value={thought}
-                  onChange={(e) => setThought(e.target.value)}
-                  placeholder="이 명언에 대한 나의 생각을 적어보세요..."
-                />
-                <button type="submit">저장하기</button>
-              </form>
-            </div>
-
-            {user && (
-              <div className="saved-thoughts-section">
-                <h3>저장된 생각들</h3>
-                {savedThoughts.length > 0 ? (
-                  <div className="thoughts-list">
-                    {savedThoughts.map((savedThought) => (
-                      <div key={savedThought.id} className="thought-item">
-                        <div className="thought-date">
-                          {new Date(savedThought.date).toLocaleDateString()}
-                        </div>
-                        <div className="thought-quote">
-                          "{savedThought.quote.text}"
-                        </div>
-                        <div className="thought-text">
-                          {savedThought.text}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="no-thoughts">아직 저장된 생각이 없습니다.</p>
+    return (
+      <div className="container">
+        <header className="app-header">
+          <h1>Daily Thought</h1>
+          <div className="auth-buttons">
+            {user ? (
+              <div className="user-info">
+                {user.photoURL && (
+                  <img src={user.photoURL} alt="프로필" className="profile-image" />
                 )}
+                <span className="user-name">{user.displayName}</span>
+                <button onClick={this.handleLogout} className="logout-button">
+                  로그아웃
+                </button>
               </div>
+            ) : (
+              <button onClick={this.handleLogin} className="login-button">
+                로그인
+              </button>
             )}
           </div>
-        );
-      case 'wallet':
-        return <Wallet user={user} />;
-      case 'theme':
-        return <ThemeSettings />;
-      case 'language':
-        return <LanguageSettings />;
-      case 'notification':
-        return <NotificationSettings />;
-      case 'data':
-        return <DataManagement user={user} savedThoughts={savedThoughts} setSavedThoughts={setSavedThoughts} bookmarks={bookmarks} setBookmarks={setBookmarks} />;
-      default:
-        return null;
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="loading-screen">
-        <div className="loading-spinner">로딩중...</div>
+        </header>
       </div>
     );
   }
-
-  if (!user) {
-    return (
-      <div className="login-container">
-        <h2>Daily Thought</h2>
-        <p>매일 새로운 명언과 함께 나의 생각을 기록해보세요</p>
-        <button onClick={handleLogin} className="login-button">
-          Google로 시작하기
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container">
-      <header className="app-header">
-        <h1>Daily Thought</h1>
-        <div className="auth-buttons">
-          {user ? (
-            <div className="user-info">
-              {user.photoURL && (
-                <img src={user.photoURL} alt="프로필" className="profile-image" />
-              )}
-              <span className="user-name">{user.displayName}</span>
-              <button onClick={handleLogout} className="logout-button">
-                로그아웃
-              </button>
-            </div>
-          ) : (
-            <button onClick={handleLogin} className="login-button">
-              로그인
-            </button>
-          )}
-        </div>
-      </header>
-
-      <main className="app-main">
-        {!user ? (
-          <div className="login-prompt">
-            <h2>{t('app.welcomeTitle')}</h2>
-            <p>{t('app.loginPrompt')}</p>
-            <button onClick={handleLogin} className="login-button-large">
-              {t('app.loginWithGoogle')}
-            </button>
-          </div>
-        ) : (
-          <div className="content-wrapper">
-            <nav className="side-menu">
-              <button
-                className={`menu-button ${activeMenu === 'quote' ? 'active' : ''}`}
-                onClick={() => setActiveMenu('quote')}
-              >
-                오늘의 명언
-              </button>
-              <button
-                className={`menu-button ${activeMenu === 'wallet' ? 'active' : ''}`}
-                onClick={() => setActiveMenu('wallet')}
-              >
-                내 지갑
-              </button>
-              <button
-                className={`menu-button ${activeMenu === 'theme' ? 'active' : ''}`}
-                onClick={() => setActiveMenu('theme')}
-              >
-                테마 설정
-              </button>
-              <button
-                className={`menu-button ${activeMenu === 'language' ? 'active' : ''}`}
-                onClick={() => setActiveMenu('language')}
-              >
-                언어 설정
-              </button>
-              <button
-                className={`menu-button ${activeMenu === 'notification' ? 'active' : ''}`}
-                onClick={() => setActiveMenu('notification')}
-              >
-                알림 설정
-              </button>
-              <button
-                className={`menu-button ${activeMenu === 'data' ? 'active' : ''}`}
-                onClick={() => setActiveMenu('data')}
-              >
-                데이터 관리
-              </button>
-            </nav>
-
-            <main className="content">
-              {renderContent()}
-            </main>
-          </div>
-        )}
-      </main>
-    </div>
-  );
 }
 
 export default AppContent; 
