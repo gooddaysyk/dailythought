@@ -7,8 +7,8 @@ const firebaseConfig = {
   authDomain: "dailythought-c8a5c.firebaseapp.com",
   projectId: "dailythought-c8a5c",
   storageBucket: "dailythought-c8a5c.appspot.com",
-  messagingSenderId: "1098498831961",
-  appId: "1:1098498831961:web:d4e0c0a5a2c0a5a2c0a5a2"
+  messagingSenderId: "287571952965",
+  appId: "1:287571952965:web:b6801a07c2869e10792a2c"
 };
 
 // Firebase 초기화
