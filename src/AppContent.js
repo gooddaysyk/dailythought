@@ -118,14 +118,25 @@ function AppContent() {
 
   const handleLogin = async () => {
     try {
-      setIsLoading(true); // 로딩 상태 시작
+      setIsLoading(true);
       
+      // Google 로그인 제공자 설정
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({
-        prompt: 'select_account'
+        prompt: 'select_account',
+        login_hint: 'user@example.com' // 선택적: 특정 계정으로 로그인 유도
       });
       
-      const result = await signInWithPopup(auth, provider);
+      // 팝업 설정
+      const popupConfig = {
+        width: 500,
+        height: 600,
+        left: (window.screen.width - 500) / 2,
+        top: (window.screen.height - 600) / 2
+      };
+      
+      // 로그인 팝업 실행
+      const result = await signInWithPopup(auth, provider, popupConfig);
       
       if (result.user) {
         console.log('로그인 성공:', result.user.email);
@@ -162,13 +173,19 @@ function AppContent() {
         case 'auth/network-request-failed':
           errorMessage = '네트워크 연결을 확인해주세요.';
           break;
+        case 'auth/unauthorized-domain':
+          errorMessage = '이 도메인에서는 로그인이 허용되지 않습니다.';
+          break;
+        case 'auth/operation-not-allowed':
+          errorMessage = 'Google 로그인이 비활성화되어 있습니다.';
+          break;
         default:
           errorMessage = `로그인 오류: ${error.message}`;
       }
       
       alert(errorMessage);
     } finally {
-      setIsLoading(false); // 로딩 상태 종료
+      setIsLoading(false);
     }
   };
 
