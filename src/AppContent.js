@@ -58,6 +58,12 @@ class AppContent extends React.Component {
   }
 
   componentDidMount() {
+    // 로그인 상태 확인
+    const savedUserId = localStorage.getItem('userId');
+    if (savedUserId) {
+      this.setState({ isLoading: true });
+    }
+
     // 네트워크 상태 초기 체크 및 모니터링
     const checkOnlineStatus = () => {
       const isOnline = navigator.onLine;
@@ -129,11 +135,112 @@ class AppContent extends React.Component {
     }
   };
 
+  handleThoughtSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!this.state.thought.trim()) {
+      alert('생각을 입력해주세요.');
+      return;
+    }
+
+    if (!this.state.user) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+
+    this.setState({ isLoading: true });
+
+    try {
+      const thoughtData = {
+        text: this.state.thought,
+        quote: this.state.quote,
+        date: new Date().toISOString(),
+        userId: this.state.user.uid,
+        mood: this.state.selectedMood,
+        createdAt: new Date().getTime()
+      };
+
+      console.log('Saving thought:', thoughtData);
+
+      // 로컬 저장 먼저 수행
+      const newThought = {
+        id: `local_${Date.now()}`,
+        ...thoughtData,
+        pendingSync: true
+      };
+
+      // 로컬 상태 업데이트
+      this.setState(prevState => ({
+        savedThoughts: [newThought, ...prevState.savedThoughts],
+        thought: ''
+      }));
+
+      // 로컬 캐시 업데이트
+      const cachedThoughts = JSON.parse(localStorage.getItem(`thoughts_${this.state.user.uid}`) || '[]');
+      cachedThoughts.unshift(newThought);
+      localStorage.setItem(`thoughts_${this.state.user.uid}`, JSON.stringify(cachedThoughts));
+
+      // Firestore에 저장
+      try {
+        const thoughtsRef = collection(db, 'thoughts');
+        console.log('Saving to Firestore...');
+        const docRef = await addDoc(thoughtsRef, thoughtData);
+        console.log('Saved to Firestore, docRef:', docRef.id);
+
+        // 성공적으로 저장되면 로컬 데이터 업데이트
+        const serverThought = {
+          id: docRef.id,
+          ...thoughtData,
+          pendingSync: false
+        };
+
+        // 로컬 상태 업데이트
+        this.setState(prevState => ({
+          savedThoughts: prevState.savedThoughts.map(t => 
+            t.id === newThought.id ? serverThought : t
+          )
+        }));
+
+        // 캐시 업데이트
+        const updatedCachedThoughts = JSON.parse(localStorage.getItem(`thoughts_${this.state.user.uid}`) || '[]');
+        const updatedThoughts = updatedCachedThoughts.map(t => 
+          t.id === newThought.id ? serverThought : t
+        );
+        localStorage.setItem(`thoughts_${this.state.user.uid}`, JSON.stringify(updatedThoughts));
+
+      } catch (firestoreError) {
+        console.error('Firestore save error:', firestoreError);
+        // Firestore 저장 실패시에도 로컬 데이터는 유지
+        alert('서버 저장에 실패했습니다. 나중에 다시 동기화됩니다.');
+      }
+
+    } catch (error) {
+      console.error('Error in handleThoughtSubmit:', error);
+      alert('생각 저장 중 오류가 발생했습니다: ' + error.message);
+    } finally {
+      this.setState({ isLoading: false });
+    }
+  };
+
   loadUserData = async (userId) => {
     try {
       console.log('Loading thoughts for user:', userId);
-      console.log('Current online status:', navigator.onLine ? 'online' : 'offline');
       
+      // 캐시된 데이터 먼저 로드
+      const cachedData = localStorage.getItem(`thoughts_${userId}`);
+      if (cachedData) {
+        const thoughts = JSON.parse(cachedData);
+        this.setState({ savedThoughts: thoughts });
+      }
+
+      // 오프라인 상태 확인
+      if (!navigator.onLine) {
+        console.log('오프라인 상태 - 캐시된 데이터만 사용');
+        this.setState({ isUsingCache: true });
+        return;
+      }
+
+      // 온라인 상태에서 서버 데이터 로드
       const thoughtsRef = collection(db, 'thoughts');
       const thoughtsQuery = query(
         thoughtsRef,
@@ -141,53 +248,29 @@ class AppContent extends React.Component {
         orderBy('date', 'desc')
       );
       
-      try {
-        const thoughtsSnapshot = await getDocs(thoughtsQuery);
-        const thoughts = thoughtsSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        
-        console.log('서버에서 데이터 로드됨:', thoughts.length);
-        this.setState({ savedThoughts: thoughts, isUsingCache: false });
+      const thoughtsSnapshot = await getDocs(thoughtsQuery);
+      const thoughts = thoughtsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      console.log('서버에서 데이터 로드됨:', thoughts.length);
+      this.setState({ 
+        savedThoughts: thoughts,
+        isUsingCache: false 
+      });
 
-        // 성공적으로 데이터를 가져왔을 때만 캐시 업데이트
-        localStorage.setItem(`thoughts_${userId}`, JSON.stringify(thoughts));
-        localStorage.setItem(`thoughts_timestamp_${userId}`, Date.now().toString());
+      // 캐시 업데이트
+      localStorage.setItem(`thoughts_${userId}`, JSON.stringify(thoughts));
+      localStorage.setItem(`thoughts_timestamp_${userId}`, Date.now().toString());
 
-        const bookmarksRef = doc(db, 'bookmarks', userId);
-        const bookmarksDoc = await getDoc(bookmarksRef);
-        if (bookmarksDoc.exists()) {
-          const bookmarks = bookmarksDoc.data().bookmarks || [];
-          this.setState({ bookmarks });
-          localStorage.setItem(`bookmarks_${userId}`, JSON.stringify(bookmarks));
-          localStorage.setItem(`bookmarks_timestamp_${userId}`, Date.now().toString());
-        }
-      } catch (error) {
-        console.error('Data loading error:', error);
-        
-        // 오프라인이거나 다른 오류 발생 시 캐시 사용
-        const cachedData = localStorage.getItem(`thoughts_${userId}`);
-        if (cachedData) {
-          console.log('캐시된 데이터 사용');
-          this.setState({
-            savedThoughts: JSON.parse(cachedData),
-            isUsingCache: true
-          });
-        }
-        
-        if (!navigator.onLine) {
-          console.log('오프라인 상태 - 캐시된 데이터 사용');
-        } else {
-          throw error;
-        }
-      }
     } catch (error) {
       console.error('Error in loadUserData:', error);
       if (!navigator.onLine) {
-        alert('오프라인 상태입니다. 캐시된 데이터를 사용합니다.');
+        console.log('오프라인 상태 - 캐시된 데이터 사용');
+        this.setState({ isUsingCache: true });
       } else {
-        alert('데이터를 불러오는 중 오류가 발생했습니다: ' + error.message);
+        throw error;
       }
     }
   };
@@ -271,7 +354,7 @@ class AppContent extends React.Component {
   };
 
   render() {
-    const { isLoading, user, isOnline, isUsingCache } = this.state;
+    const { isLoading, user, isOnline, isUsingCache, activeMenu } = this.state;
 
     if (isLoading) {
       return (
@@ -280,6 +363,87 @@ class AppContent extends React.Component {
         </div>
       );
     }
+
+    if (!user) {
+      return (
+        <div className="login-container">
+          <h2>Daily Thought</h2>
+          <p>매일 새로운 명언과 함께 나의 생각을 기록해보세요</p>
+          <button onClick={this.handleLogin} className="login-button">
+            Google로 시작하기
+          </button>
+        </div>
+      );
+    }
+
+    const renderContent = () => {
+      switch (activeMenu) {
+        case 'quote':
+          return (
+            <div className="quote-section">
+              <h2>오늘의 명언</h2>
+              <div className="quote-content">
+                <p>"{this.state.quote.text}"</p>
+                <p className="quote-author">- {this.state.quote.author}</p>
+              </div>
+              <ShareButton quote={this.state.quote} thought={this.state.thought} />
+              
+              <div className="thought-input-section">
+                <h3>나의 생각</h3>
+                <form onSubmit={this.handleThoughtSubmit}>
+                  <textarea
+                    value={this.state.thought}
+                    onChange={(e) => this.setState({ thought: e.target.value })}
+                    placeholder="이 명언에 대한 나의 생각을 적어보세요..."
+                  />
+                  <button type="submit">저장하기</button>
+                </form>
+              </div>
+
+              <div className="saved-thoughts-section">
+                <h3>저장된 생각들</h3>
+                {this.state.savedThoughts.length > 0 ? (
+                  <div className="thoughts-list">
+                    {this.state.savedThoughts.map((savedThought) => (
+                      <div key={savedThought.id} className="thought-item">
+                        <div className="thought-date">
+                          {new Date(savedThought.date).toLocaleDateString()}
+                        </div>
+                        <div className="thought-quote">
+                          "{savedThought.quote.text}"
+                        </div>
+                        <div className="thought-text">
+                          {savedThought.text}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="no-thoughts">아직 저장된 생각이 없습니다.</p>
+                )}
+              </div>
+            </div>
+          );
+        case 'wallet':
+          return <Wallet user={user} />;
+        case 'theme':
+          return <ThemeSettings />;
+        case 'language':
+          return <LanguageSettings />;
+        case 'notification':
+          return <NotificationSettings />;
+        case 'data':
+          return <DataManagement 
+            user={user} 
+            savedThoughts={this.state.savedThoughts} 
+            setSavedThoughts={(thoughts) => this.setState({ savedThoughts: thoughts })}
+            bookmarks={this.state.bookmarks}
+            setBookmarks={(bookmarks) => this.setState({ bookmarks })}
+          />;
+        default:
+          return null;
+      }
+    };
 
     return (
       <div className="container">
@@ -313,6 +477,53 @@ class AppContent extends React.Component {
             )}
           </div>
         </header>
+
+        <main className="app-main">
+          <div className="content-wrapper">
+            <nav className="side-menu">
+              <button
+                className={`menu-button ${activeMenu === 'quote' ? 'active' : ''}`}
+                onClick={() => this.setState({ activeMenu: 'quote' })}
+              >
+                오늘의 명언
+              </button>
+              <button
+                className={`menu-button ${activeMenu === 'wallet' ? 'active' : ''}`}
+                onClick={() => this.setState({ activeMenu: 'wallet' })}
+              >
+                내 지갑
+              </button>
+              <button
+                className={`menu-button ${activeMenu === 'theme' ? 'active' : ''}`}
+                onClick={() => this.setState({ activeMenu: 'theme' })}
+              >
+                테마 설정
+              </button>
+              <button
+                className={`menu-button ${activeMenu === 'language' ? 'active' : ''}`}
+                onClick={() => this.setState({ activeMenu: 'language' })}
+              >
+                언어 설정
+              </button>
+              <button
+                className={`menu-button ${activeMenu === 'notification' ? 'active' : ''}`}
+                onClick={() => this.setState({ activeMenu: 'notification' })}
+              >
+                알림 설정
+              </button>
+              <button
+                className={`menu-button ${activeMenu === 'data' ? 'active' : ''}`}
+                onClick={() => this.setState({ activeMenu: 'data' })}
+              >
+                데이터 관리
+              </button>
+            </nav>
+
+            <main className="content">
+              {renderContent()}
+            </main>
+          </div>
+        </main>
       </div>
     );
   }
