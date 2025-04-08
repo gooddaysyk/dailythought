@@ -1,10 +1,12 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, enableIndexedDbPersistence, initializeFirestore } from 'firebase/firestore';
-import { getAuth, connectAuthEmulator } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 
+// GitHub Pages 도메인 설정
+const hostname = window.location.hostname;
 const firebaseConfig = {
   apiKey: "AIzaSyDWAFLA7k2qSTRfqzYBLwpDtjzt68j08_M",
-  authDomain: "daily-quotes-app-9bf66.firebaseapp.com",
+  authDomain: hostname === "gooddaysyk.github.io" ? "daily-quotes-app-9bf66.firebaseapp.com" : "daily-quotes-app-9bf66.firebaseapp.com",
   projectId: "daily-quotes-app-9bf66",
   storageBucket: "daily-quotes-app-9bf66.appspot.com",
   messagingSenderId: "287571952965",
@@ -23,11 +25,6 @@ const db = initializeFirestore(app, {
 
 // Auth 인스턴스
 const auth = getAuth(app);
-
-// GitHub Pages 도메인 설정
-if (window.location.hostname === "gooddaysyk.github.io") {
-  auth.config.authDomain = "daily-quotes-app-9bf66.firebaseapp.com";
-}
 
 // IndexedDB 지속성 활성화 (오프라인 지원)
 if (typeof window !== 'undefined') {
