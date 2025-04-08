@@ -1,7 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore, enableIndexedDbPersistence, initializeFirestore } from 'firebase/firestore';
-import { getAuth } from 'firebase/auth';
-import { getAnalytics } from 'firebase/analytics';
+import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDWAFLA7k2qSTRfqzYBLwpDtjzt68j08_M",
@@ -18,12 +17,17 @@ const app = initializeApp(firebaseConfig);
 
 // Firestore 인스턴스 초기화 with 최적화 설정
 const db = initializeFirestore(app, {
-  experimentalForceLongPolling: true, // WebSocket 대신 HTTP 롱폴링 사용
-  useFetchStreams: false, // 스트리밍 비활성화
+  experimentalForceLongPolling: true,
+  useFetchStreams: false,
 });
 
 // Auth 인스턴스
 const auth = getAuth(app);
+
+// GitHub Pages 도메인 설정
+if (window.location.hostname === "gooddaysyk.github.io") {
+  auth.config.authDomain = "daily-quotes-app-9bf66.firebaseapp.com";
+}
 
 // IndexedDB 지속성 활성화 (오프라인 지원)
 if (typeof window !== 'undefined') {
@@ -36,10 +40,13 @@ if (typeof window !== 'undefined') {
   });
 }
 
-// Analytics 초기화 (선택적)
-let analytics = null;
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
-  analytics = getAnalytics(app);
-}
+// 인증 상태 변경 감지
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    console.log('User is signed in:', user.uid);
+  } else {
+    console.log('No user is signed in.');
+  }
+});
 
-export { app, db, auth, analytics }; 
+export { app, db, auth }; 
