@@ -306,7 +306,10 @@ class AppContent extends React.Component {
           
           localStorage.setItem('isLoggedIn', 'true');
           localStorage.setItem('userId', result.user.uid);
+          localStorage.setItem('userEmail', result.user.email);
+          localStorage.setItem('userDisplayName', result.user.displayName);
         } catch (error) {
+          console.error('Error saving user data:', error);
           if (!navigator.onLine) {
             console.log('오프라인 상태입니다. 일부 데이터는 동기화되지 않을 수 있습니다.');
           } else {
